@@ -671,16 +671,82 @@
       `
     }
 
+    function renderSystemProcessesSection(processes, totalMemory) {
+      if (!processes.length) {
+        return `
+          <section class="card">
+            <div class="section-title">
+              <h2>Processos da VPS</h2>
+              <span>Nenhum processo encontrado</span>
+            </div>
+            <div class="error-msg">Nenhum processo do sistema disponível para análise.</div>
+          </section>
+        `
+      }
+
+      return `
+        <section class="card">
+          <div class="section-title">
+            <h2>Processos mais pesados</h2>
+            <span>${processes.length} por memória residente</span>
+          </div>
+          <div class="process-list">
+            <div class="process-row header">
+              <div>Processo</div>
+              <div>CPU</div>
+              <div>RAM</div>
+              <div>% RAM da VPS</div>
+              <div>% CPU</div>
+            </div>
+            ${processes.map(proc => {
+              const cpu = Number(proc.cpuPercent || 0)
+              const memory = Number(proc.memoryBytes || 0)
+              const ramPercent = totalMemory > 0 ? (memory / totalMemory) * 100 : 0
+              const cpuColor = loadStatusColor(cpu).color
+              const ramColor = loadStatusColor(ramPercent).color
+
+              return `
+                <div class="process-row">
+                  <div>
+                    <div class="process-name">${proc.command || '—'}</div>
+                    <div class="process-status">PID ${proc.pid || '—'} · PPID ${proc.ppid || '—'} · ${proc.args || '—'}</div>
+                  </div>
+                  <div class="process-metric">
+                    <strong>${cpu.toFixed(1)}%</strong>
+                    <span>uso atual</span>
+                  </div>
+                  <div class="process-metric">
+                    <strong>${formatBytes(memory)}</strong>
+                    <span>${Number(proc.memoryPercent || 0).toFixed(2)}% do host</span>
+                  </div>
+                  <div class="process-metric">
+                    <strong>${ramPercent.toFixed(2)}%</strong>
+                    ${processBar(ramPercent, ramColor)}
+                  </div>
+                  <div class="process-metric">
+                    <strong>${cpu.toFixed(1)}%</strong>
+                    ${processBar(cpu, cpuColor)}
+                  </div>
+                </div>
+              `
+            }).join('')}
+          </div>
+        </section>
+      `
+    }
+
     async function load() {
       try {
-        const [resourceRes, pm2Res, dockerStatsRes] = await Promise.all([
+        const [resourceRes, pm2Res, dockerStatsRes, processRes] = await Promise.all([
           fetch('/api/resources'),
           fetch('/api/pm2'),
-          fetch('/api/docker-stats')
+          fetch('/api/docker-stats'),
+          fetch('/api/processes')
         ])
         const data = await resourceRes.json()
         const pm2Data = pm2Res.ok ? await pm2Res.json() : []
         const dockerStatsData = dockerStatsRes.ok ? await dockerStatsRes.json() : []
+        const processData = processRes.ok ? await processRes.json() : []
 
         if (!resourceRes.ok || data.error) {
           throw new Error(data.error || 'falha ao carregar recursos')
@@ -691,6 +757,7 @@
         const diskUsage = Number(data.disk?.percent || 0)
         const pm2Procs = Array.isArray(pm2Data) ? pm2Data : []
         const dockerStats = Array.isArray(dockerStatsData) ? dockerStatsData : []
+        const systemProcesses = Array.isArray(processData) ? processData : []
 
         const cpuCard = renderUsageCard(
           'CPU',
@@ -753,6 +820,7 @@
             </section>
           </div>
           <div class="stack">
+            ${renderSystemProcessesSection(systemProcesses, Number(data.memory?.total || 0))}
             ${renderPm2Section(pm2Procs, Number(data.memory?.total || 0))}
             ${renderDockerSection(dockerStats, Number(data.memory?.total || 0))}
           </div>

@@ -269,6 +269,30 @@ function apiDockerStats(res) {
   })
 }
 
+function apiProcesses(res) {
+  execJsonCommand('ps', ['-eo', 'pid=,ppid=,pcpu=,pmem=,rss=,comm=,args=', '--sort=-rss'], res, stdout => {
+    return stdout
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .slice(0, 12)
+      .map(line => {
+        const parts = line.trim().split(/\s+/, 7)
+        const [pid, ppid, cpu, mem, rssKb, command, args] = parts
+
+        return {
+          pid: Number(pid) || 0,
+          ppid: Number(ppid) || 0,
+          cpuPercent: Number(cpu) || 0,
+          memoryPercent: Number(mem) || 0,
+          memoryBytes: (Number(rssKb) || 0) * 1024,
+          command: command || '—',
+          args: args || command || '—'
+        }
+      })
+  })
+}
+
 function readCpuTimes() {
   return os.cpus().map(cpu => ({ ...cpu.times }))
 }
@@ -412,6 +436,11 @@ http.createServer((req, res) => {
 
   if (req.url === '/api/docker-stats') {
     apiDockerStats(res)
+    return
+  }
+
+  if (req.url === '/api/processes') {
+    apiProcesses(res)
     return
   }
 
