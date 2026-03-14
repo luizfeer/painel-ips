@@ -1,49 +1,51 @@
 # painel-ips
 
-Painel leve em Node.js para listar servicos internos, monitorar processos PM2, containers Docker e recursos da VPS.
+[English version](./README.en.md)
+
+Painel leve em Node.js para listar serviços internos, monitorar processos PM2, containers Docker e recursos da VPS.
 
 ## Objetivo
 
-Esse projeto foi feito para uso operacional interno.
+Este projeto foi feito para uso operacional interno.
 
-- listar IPs e portas dos servicos da VPS
+- listar IPs e portas dos serviços da VPS
 - acompanhar processos do PM2
 - acompanhar containers Docker
-- ver CPU, RAM e disco da maquina
+- ver CPU, RAM e disco da máquina
 
 ## Requisitos
 
 - Node.js 16+
 - PM2 opcional
 - Docker opcional
-- Linux com `systemd` se for usar servico nativo
+- Linux com `systemd`, se for usar serviço nativo
 
-## Seguranca
+## Segurança
 
-Recomendacao: nao exponha esse painel publicamente.
+Recomendação: não exponha este painel publicamente.
 
 Use um destes modelos:
 
 - acesso por SSH direto na VPS
-- tunel SSH local
+- túnel SSH local
 - rede privada como WireGuard, Tailscale ou VPN interna
-- reverse proxy interno protegido por autenticacao forte
+- reverse proxy interno protegido por autenticação forte
 
-Exemplo com tunel SSH:
+Exemplo com túnel SSH:
 
 ```bash
 ssh -L 3500:127.0.0.1:3500 usuario@sua-vps
 ```
 
-Depois abra no navegador local:
+Depois, abra no navegador local:
 
 ```bash
 http://127.0.0.1:3500
 ```
 
-Se publicar isso em IP publico sem controle de acesso, voce esta expondo informacoes internas da infraestrutura.
+Se publicar isso em IP público sem controle de acesso, você estará expondo informações internas da infraestrutura.
 
-## Instalacao
+## Instalação
 
 ```bash
 git clone https://github.com/luizfeer/painel-ips.git
@@ -53,24 +55,24 @@ nano .env
 chmod +x install.sh
 ```
 
-## Configuracao
+## Configuração
 
-O projeto usa somente variaveis do `.env`.
+O projeto usa somente variáveis do `.env`.
 
 - `PAINEL_PORT`: porta HTTP do painel
-- `PAINEL_HOST`: host de bind; para acesso por tunel SSH, `127.0.0.1` e o mais seguro
+- `PAINEL_HOST`: host de bind; para acesso por túnel SSH, `127.0.0.1` é o mais seguro
 - `PAINEL_IP_INTERFACE`: interface preferida para detectar o IP principal da VPS, como `wg0`, `eth0` ou `ens3`
-- `PAINEL_CONFIG_REFRESH_MS`: intervalo de recarga do painel principal em ms; padrao `1800000` = 30 minutos
-- `PAINEL_CONFIG_JSON`: define as secoes e servicos exibidos na tela principal
-- `PAINEL_PM2_LINKS_JSON`: define links clicaveis associados aos nomes dos processos PM2
+- `PAINEL_CONFIG_REFRESH_MS`: intervalo de recarga do painel principal em ms; padrão `1800000` = 30 minutos
+- `PAINEL_CONFIG_JSON`: define as seções e serviços exibidos na tela principal
+- `PAINEL_PM2_LINKS_JSON`: define links clicáveis associados aos nomes dos processos PM2
 
-O painel principal pode detectar automaticamente o IP da VPS com `hostLabel: "auto"` e montar os enderecos a partir das portas configuradas.
+O painel principal pode detectar automaticamente o IP da VPS com `hostLabel: "auto"` e montar os endereços a partir das portas configuradas.
 
-Se a VPS tiver varias interfaces, defina `PAINEL_IP_INTERFACE` para evitar escolher o IP errado.
+Se a VPS tiver várias interfaces, defina `PAINEL_IP_INTERFACE` para evitar escolher o IP errado.
 
 ## Rodando com PM2
 
-Opcao recomendada quando voce ja usa PM2 na VPS.
+Opção recomendada quando você já usa PM2 na VPS.
 
 ```bash
 ./install.sh
@@ -86,9 +88,9 @@ pm2 startup systemd -u $(whoami) --hp $HOME
 
 ## Rodando com systemd
 
-Opcao recomendada se voce quer tratar isso como servico nativo do sistema.
+Opção recomendada se você quer tratar isso como serviço nativo do sistema.
 
-Antes de habilitar, ajuste o caminho em [painel-ips.service](/root/painel-ips/painel-ips.service) se o projeto nao estiver em `/opt/painel-ips`.
+Antes de habilitar, ajuste o caminho em [painel-ips.service](/root/painel-ips/painel-ips.service) se o projeto não estiver em `/opt/painel-ips`.
 
 Exemplo:
 
@@ -98,7 +100,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now painel-ips
 ```
 
-Comandos uteis:
+Comandos úteis:
 
 ```bash
 sudo systemctl status painel-ips
@@ -106,7 +108,7 @@ sudo journalctl -u painel-ips -f
 sudo systemctl restart painel-ips
 ```
 
-## Operacao
+## Operação
 
 Rotas principais:
 
@@ -115,9 +117,9 @@ Rotas principais:
 - `/resources` uso de CPU, RAM e disco
 - `/healthz` healthcheck simples
 
-## Observacoes
+## Observações
 
-- Se `pm2` nao estiver instalado, a pagina `/pm2` continua carregando, mas a API mostra erro explicito para a parte de PM2.
-- Se `docker` nao estiver instalado, a parte de containers tambem mostra erro explicito.
-- O que normalmente muda entre VPS e o `.env`: interface de rede, portas e links dos servicos.
+- Se `pm2` não estiver instalado, a página `/pm2` continua carregando, mas a API mostra erro explícito para a parte de PM2.
+- Se `docker` não estiver instalado, a parte de containers também mostra erro explícito.
+- O que normalmente muda entre VPS é o `.env`: interface de rede, portas e links dos serviços.
 - Para ambiente mais fechado, prefira `PAINEL_HOST=127.0.0.1` e acesse por SSH tunnel.
