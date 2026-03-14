@@ -32,6 +32,15 @@ Use um destes modelos:
 - rede privada como WireGuard, Tailscale ou VPN interna
 - reverse proxy interno protegido por autenticação forte
 
+Para cenário com WireGuard, o padrão recomendado é:
+
+```env
+PAINEL_HOST=0.0.0.0
+PAINEL_PORT=3500
+```
+
+Assim o painel fica acessível pela interface da VPN, mas não deve ser publicado na internet aberta.
+
 Exemplo com túnel SSH:
 
 ```bash
@@ -65,7 +74,7 @@ Se a instalação for executada por um agente/IA, use também o guia dedicado:
 O projeto usa somente variáveis do `.env`.
 
 - `PAINEL_PORT`: porta HTTP do painel
-- `PAINEL_HOST`: host de bind; para acesso por túnel SSH, `127.0.0.1` é o mais seguro
+- `PAINEL_HOST`: host de bind; para acesso por WireGuard, `0.0.0.0` costuma ser o mais prático
 - `PAINEL_IP_INTERFACE`: interface preferida para detectar o IP principal da VPS, como `wg0`, `eth0` ou `ens3`
 - `PAINEL_CONFIG_REFRESH_MS`: intervalo de recarga do painel principal em ms; padrão `1800000` = 30 minutos
 - `PAINEL_CONFIG_JSON`: define as seções e serviços exibidos na tela principal
@@ -127,4 +136,5 @@ Rotas principais:
 - Se `pm2` não estiver instalado, a página `/pm2` continua carregando, mas a API mostra erro explícito para a parte de PM2.
 - Se `docker` não estiver instalado, a parte de containers também mostra erro explícito.
 - O que normalmente muda entre VPS é o `.env`: interface de rede, portas e links dos serviços.
-- Para ambiente mais fechado, prefira `PAINEL_HOST=127.0.0.1` e acesse por SSH tunnel.
+- Para ambiente via WireGuard, prefira `PAINEL_HOST=0.0.0.0` e restrinja o acesso à rede privada.
+- Se o painel não precisar responder fora do host, `PAINEL_HOST=127.0.0.1` continua sendo a opção mais fechada.

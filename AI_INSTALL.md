@@ -18,6 +18,7 @@ Instalar o projeto com segurança, preferindo acesso interno e sem exposição p
 
 Preferir sempre uma destas abordagens:
 
+- `PAINEL_HOST=0.0.0.0` com acesso somente por WireGuard/VPN privada
 - `PAINEL_HOST=127.0.0.1` com acesso via túnel SSH
 - rede privada como WireGuard ou Tailscale
 
@@ -45,7 +46,7 @@ Revisar:
 Recomendação padrão segura:
 
 ```env
-PAINEL_HOST=127.0.0.1
+PAINEL_HOST=0.0.0.0
 PAINEL_PORT=3500
 PAINEL_IP_INTERFACE=wg0
 PAINEL_CONFIG_REFRESH_MS=1800000
@@ -96,7 +97,7 @@ sudo journalctl -u painel-ips -n 50 --no-pager
 
 ## Healthcheck
 
-Validar se o backend responde:
+Validar se o backend responde no próprio host:
 
 ```bash
 curl -sS http://127.0.0.1:3500/healthz
@@ -105,6 +106,8 @@ curl -sS http://127.0.0.1:3500/healthz
 Se estiver em outra porta, ajustar a URL.
 
 ## Acesso recomendado
+
+Se o acesso for por WireGuard, usar o IP privado da VPN da VPS na porta `3500`.
 
 Se `PAINEL_HOST=127.0.0.1`, abrir com túnel SSH:
 
@@ -141,5 +144,5 @@ Ao final da instalação:
 
 - o painel responde em `/healthz`
 - a página principal mostra IP e portas montados automaticamente
-- o acesso ocorre por SSH túnel ou rede privada
+- o acesso ocorre por WireGuard/VPN privada ou SSH túnel
 - o serviço fica gerenciado por PM2 ou `systemd`

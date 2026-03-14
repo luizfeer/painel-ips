@@ -32,6 +32,15 @@ Use one of these access models:
 - private networking such as WireGuard, Tailscale, or an internal VPN
 - internal reverse proxy protected with strong authentication
 
+For a WireGuard-based setup, the recommended default is:
+
+```env
+PAINEL_HOST=0.0.0.0
+PAINEL_PORT=3500
+```
+
+This keeps the dashboard reachable through the VPN interface, but it still should not be exposed to the public internet.
+
 SSH tunnel example:
 
 ```bash
@@ -65,7 +74,7 @@ If installation is being handled by an agent/AI, also use the dedicated guide:
 The project uses only `.env` variables.
 
 - `PAINEL_PORT`: dashboard HTTP port
-- `PAINEL_HOST`: bind host; for SSH tunnel access, `127.0.0.1` is the safest option
+- `PAINEL_HOST`: bind host; for WireGuard access, `0.0.0.0` is usually the most practical option
 - `PAINEL_IP_INTERFACE`: preferred interface used to detect the VPS primary IP, such as `wg0`, `eth0`, or `ens3`
 - `PAINEL_CONFIG_REFRESH_MS`: dashboard refresh interval in ms; default `1800000` = 30 minutes
 - `PAINEL_CONFIG_JSON`: defines the sections and services shown on the main page
@@ -127,4 +136,5 @@ Main routes:
 - If `pm2` is not installed, `/pm2` still loads, but the API returns an explicit PM2 dependency error.
 - If `docker` is not installed, the containers section also returns an explicit dependency error.
 - What usually changes between VPS environments is the `.env`: network interface, ports, and service links.
-- For a more restricted setup, prefer `PAINEL_HOST=127.0.0.1` and access it through an SSH tunnel.
+- For a WireGuard setup, prefer `PAINEL_HOST=0.0.0.0` and keep access restricted to the private network.
+- If the dashboard does not need remote access, `PAINEL_HOST=127.0.0.1` is still the most locked-down option.
