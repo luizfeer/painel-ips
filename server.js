@@ -8,31 +8,32 @@ loadEnvFile(path.join(__dirname, '.env'))
 
 const PORT = Number(process.env.PAINEL_PORT || 3500)
 const HOST = process.env.PAINEL_HOST || '0.0.0.0'
+const CONFIG_REFRESH_MS = Number(process.env.PAINEL_CONFIG_REFRESH_MS || 30 * 60 * 1000)
 
 const DEFAULT_PM2_LINKS = {
-  'evolution-api': { url: 'http://10.8.0.1:8080' },
-  'evolution-manager': { url: 'http://10.8.0.1:3000' },
+  'evolution-api': { port: 8080 },
+  'evolution-manager': { port: 3000 },
   'poliwebapp_api': { url: 'http://127.0.0.1:5000' },
-  'wallet-service': { url: 'http://10.8.0.1:8787' },
-  'painel-ips': { url: 'http://10.8.0.1:3500' }
+  'wallet-service': { port: 8787 },
+  'painel-ips': { port: 3500 }
 }
 
 const DEFAULT_CONFIG = {
-  hostLabel: '10.8.0.1',
+  hostLabel: 'auto',
   hostSubtitle: 'gateway interno',
   networkLabel: 'ambiente privado',
   networkDescription: 'wireguard 10.8.0.0/24',
   databaseSectionLabel: 'PostgreSQL cluster interno',
   serviceSectionLabel: 'HTTP · TCP internos',
   databases: [
-    { name: 'n8n PostgreSQL', address: '10.8.0.1:5433', user: 'n8n', database: 'n8n' },
-    { name: 'Postgres standalone', address: '10.8.0.1:5432', user: '—', database: '—' }
+    { name: 'n8n PostgreSQL', port: 5433, user: 'n8n', database: 'n8n' },
+    { name: 'Postgres standalone', port: 5432, user: '—', database: '—' }
   ],
   services: [
-    { name: 'n8n', address: '10.8.0.1:5678' },
-    { name: 'Langflow', address: '10.8.0.1:7860' },
-    { name: 'PostgreSQL (standalone)', address: '10.8.0.1:5432' },
-    { name: 'Redis (evolution)', address: '10.8.0.1:6379' }
+    { name: 'n8n', port: 5678 },
+    { name: 'Langflow', port: 7860 },
+    { name: 'PostgreSQL (standalone)', port: 5432 },
+    { name: 'Redis (evolution)', port: 6379 }
   ]
 }
 
@@ -92,6 +93,70 @@ function loadPanelConfig() {
   }
 }
 
+function getPrimaryIpv4() {
+  const preferredInterface = process.env.PAINEL_IP_INTERFACE
+  const networks = os.networkInterfaces()
+
+  if (preferredInterface && Array.isArray(networks[preferredInterface])) {
+    const chosen = networks[preferredInterface].find(isUsableAddress)
+    if (chosen) return chosen.address
+  }
+
+  const candidates = []
+  for (const entries of Object.values(networks)) {
+    for (const entry of entries || []) {
+      if (isUsableAddress(entry)) candidates.push(entry.address)
+    }
+  }
+
+  return (
+    candidates.find(address => address.startsWith('10.')) ||
+    candidates.find(address => address.startsWith('172.')) ||
+    candidates.find(address => address.startsWith('192.168.')) ||
+    candidates[0] ||
+    '127.0.0.1'
+  )
+}
+
+function isUsableAddress(entry) {
+  return entry && entry.family === 'IPv4' && entry.internal === false
+}
+
+function buildAddress(item, hostLabel) {
+  if (item.address) return String(item.address)
+  if (item.url) return String(item.url)
+  if (item.port) return `${hostLabel}:${item.port}`
+  return hostLabel
+}
+
+function resolvePm2Link(linkConfig, hostLabel) {
+  if (!linkConfig) return null
+  if (linkConfig.url) return { ...linkConfig, url: String(linkConfig.url) }
+  if (linkConfig.port) return { ...linkConfig, url: `http://${hostLabel}:${linkConfig.port}` }
+  return null
+}
+
+function getResolvedPanelConfig() {
+  const detectedHost = getPrimaryIpv4()
+  const hostLabel = panelConfig.hostLabel === 'auto'
+    ? detectedHost
+    : String(panelConfig.hostLabel || detectedHost)
+
+  return {
+    ...panelConfig,
+    hostLabel,
+    refreshMs: CONFIG_REFRESH_MS,
+    databases: panelConfig.databases.map(item => ({
+      ...item,
+      address: buildAddress(item, hostLabel)
+    })),
+    services: panelConfig.services.map(item => ({
+      ...item,
+      address: buildAddress(item, hostLabel)
+    }))
+  }
+}
+
 function json(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' })
   res.end(JSON.stringify(payload))
@@ -132,15 +197,16 @@ function execJsonCommand(command, args, res, transform) {
 }
 
 function apiConfig(res) {
-  json(res, 200, panelConfig)
+  json(res, 200, getResolvedPanelConfig())
 }
 
 function apiPm2(res) {
   execJsonCommand('pm2', ['jlist'], res, stdout => {
+    const resolvedConfig = getResolvedPanelConfig()
     const list = JSON.parse(stdout)
     return list.map(item => ({
       ...item,
-      _link: pm2Links[item.name] || null
+      _link: resolvePm2Link(pm2Links[item.name], resolvedConfig.hostLabel)
     }))
   })
 }

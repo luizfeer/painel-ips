@@ -449,6 +449,7 @@
 
   <script>
     let currentConfig = null
+    let refreshTimer = null
 
     function showToast(message) {
       const toast = document.getElementById('toast')
@@ -548,6 +549,8 @@
         document.getElementById('databases-body').innerHTML = renderDatabases(data.databases || [])
         document.getElementById('services-body').innerHTML = renderServices(data.services || [])
         bindCopyButtons()
+        if (refreshTimer) clearInterval(refreshTimer)
+        refreshTimer = setInterval(loadConfig, Number(data.refreshMs) || 1800000)
       } catch (error) {
         const box = document.getElementById('error-box')
         box.hidden = false

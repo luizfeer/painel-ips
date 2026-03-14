@@ -39,8 +39,10 @@ O painel usa somente variaveis do `.env`.
 
 - `PAINEL_PORT`: porta HTTP do painel
 - `PAINEL_HOST`: host de bind, normalmente `0.0.0.0`
-- `PAINEL_CONFIG_JSON`: define host, secoes e servicos exibidos na tela principal
-- `PAINEL_PM2_LINKS_JSON`: define links clicaveis associados aos nomes dos processos PM2
+- `PAINEL_IP_INTERFACE`: interface preferida para detectar o IP da VPS, como `wg0` ou `eth0`
+- `PAINEL_CONFIG_REFRESH_MS`: intervalo de recarga do painel principal, em ms
+- `PAINEL_CONFIG_JSON`: define secoes e servicos exibidos na tela principal; use `hostLabel: "auto"` para detectar o IP da VPS
+- `PAINEL_PM2_LINKS_JSON`: define links clicaveis associados aos nomes dos processos PM2; pode usar `port` para montar com o IP detectado
 
 ## Operacao
 
@@ -56,4 +58,6 @@ URLs:
 - Sem `pm2` instalado, a pagina `/pm2` continua abrindo, mas a API retorna erro explicito de dependencia ausente.
 - Sem `docker`, a parte de containers tambem retorna erro explicito.
 - O que normalmente precisa ajustar ao migrar e o `.env`, principalmente IPs internos, portas e links dos processos.
+- Agora o painel principal pode montar os enderecos sozinho a partir do IP detectado na VPS e das portas configuradas.
+- Se a VPS tiver varias interfaces, defina `PAINEL_IP_INTERFACE` para evitar pegar o IP errado.
 - Se usar PM2 e quiser subir no boot, rode `pm2 startup systemd -u <usuario> --hp <home>` e depois `pm2 save`.
