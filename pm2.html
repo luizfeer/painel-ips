@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Monitor · PM2 & Docker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg-card: rgba(15, 23, 42, 0.95);
+      --bg-card-soft: rgba(15, 23, 42, 0.85);
+      --border: rgba(148, 163, 184, 0.35);
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.12);
+      --text: #e5e7eb;
+      --text-soft: #9ca3af;
+      --radius-full: 999px;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top, #1d283a 0, #020617 40%, #000 100%);
+      color: var(--text);
+      padding: 32px 16px;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .title-group { display: flex; flex-direction: column; gap: 4px; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px 4px;
+      border-radius: var(--radius-full);
+      background: var(--accent-soft);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      font-size: 11px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
+
+    .badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.25);
+    }
+
+    h1 {
+      font-size: 22px;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    h1 span.sub {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text-soft);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 8px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.12s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      border: 1px solid var(--accent);
+      background: linear-gradient(135deg, var(--accent), #4f46e5);
+      color: #0b1220;
+      box-shadow: 0 8px 18px rgba(56, 189, 248, 0.3);
+    }
+
+    .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+    .btn-ghost {
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-soft);
+    }
+
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    .last-update { font-size: 11px; color: #4b5563; }
+
+    /* Section headers */
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 24px 0 12px;
+    }
+
+    .section-label h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-soft);
+      font-weight: 600;
+    }
+
+    .section-label .line {
+      flex: 1;
+      height: 1px;
+      background: rgba(148, 163, 184, 0.15);
+    }
+
+    .section-label .count {
+      font-size: 11px;
+      color: #4b5563;
+    }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+    }
+
+    /* Card */
+    .card {
+      background: linear-gradient(145deg, var(--bg-card-soft), rgba(15, 23, 42, 0.98));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px 18px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+    }
+
+    .card.online::before  { background: radial-gradient(circle at top left, rgba(34,197,94,0.07), transparent 55%); }
+    .card.errored::before { background: radial-gradient(circle at top left, rgba(239,68,68,0.07), transparent 55%); }
+    .card.stopped::before { background: radial-gradient(circle at top left, rgba(245,158,11,0.05), transparent 55%); }
+    .card.running::before { background: radial-gradient(circle at top left, rgba(34,197,94,0.07), transparent 55%); }
+    .card.exited::before  { background: radial-gradient(circle at top left, rgba(239,68,68,0.06), transparent 55%); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .proc-name {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-badge {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 9px 4px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .status-online, .status-running, .status-up {
+      background: rgba(34,197,94,0.15); color: #4ade80;
+      border: 1px solid rgba(34,197,94,0.35);
+    }
+    .status-errored, .status-exited {
+      background: rgba(239,68,68,0.15); color: #f87171;
+      border: 1px solid rgba(239,68,68,0.35);
+    }
+    .status-stopped, .status-paused {
+      background: rgba(245,158,11,0.12); color: #fbbf24;
+      border: 1px solid rgba(245,158,11,0.3);
+    }
+    .status-other {
+      background: rgba(148,163,184,0.1); color: #9ca3af;
+      border: 1px solid rgba(148,163,184,0.25);
+    }
+
+    /* Metrics (PM2) */
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metric {
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.2);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+
+    .metric-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #6b7280;
+      margin-bottom: 2px;
+    }
+
+    .metric-value {
+      font-size: 16px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em;
+    }
+
+    .metric-unit { font-size: 10px; color: var(--text-soft); font-weight: 400; margin-left: 2px; }
+    .metric-cpu .metric-value    { color: #60a5fa; }
+    .metric-mem .metric-value    { color: #a78bfa; }
+    .metric-restarts .metric-value { color: #fb923c; }
+    .metric-uptime .metric-value { color: #34d399; font-size: 13px; }
+
+    /* Docker info */
+    .docker-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .docker-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .docker-row-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #6b7280;
+      min-width: 44px;
+      flex-shrink: 0;
+    }
+
+    .docker-row-value {
+      color: var(--text-soft);
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .docker-ports {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .port-tag {
+      font-size: 10px;
+      font-family: ui-monospace, monospace;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(56,189,248,0.1);
+      border: 1px solid rgba(56,189,248,0.25);
+      color: var(--accent);
+    }
+
+    /* Card footer */
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(148,163,184,0.12);
+    }
+
+    .proc-id {
+      font-size: 11px;
+      color: #4b5563;
+      font-family: ui-monospace, monospace;
+    }
+
+    .proc-id span { color: #6b7280; }
+
+    .pid-badge {
+      font-size: 10px;
+      color: #6b7280;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      background: rgba(15,23,42,0.8);
+      border: 1px solid rgba(148,163,184,0.15);
+      font-family: ui-monospace, monospace;
+    }
+
+    /* Link button */
+    .link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      padding: 4px 10px 5px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(56,189,248,0.4);
+      background: rgba(56,189,248,0.08);
+      color: var(--accent);
+      text-decoration: none;
+      transition: all 0.12s;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .link-btn:hover {
+      background: rgba(56,189,248,0.18);
+      border-color: rgba(56,189,248,0.7);
+      transform: translateY(-0.5px);
+    }
+
+    /* Docker tag */
+    .source-tag {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .tag-pm2    { background: rgba(250,204,21,0.12); color: #fbbf24; border: 1px solid rgba(250,204,21,0.3); }
+    .tag-docker { background: rgba(96,165,250,0.12); color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); }
+
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-soft);
+      font-size: 14px;
+    }
+
+    .error-msg {
+      text-align: center;
+      padding: 24px;
+      color: #f87171;
+      font-size: 13px;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 14px;
+    }
+
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: 1fr; }
+      header { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title-group">
+        <div class="badge">
+          <span class="badge-dot" id="status-dot"></span>
+          Monitor de processos
+        </div>
+        <h1>
+          PM2 & Docker
+          <span class="sub" id="proc-count">carregando...</span>
+        </h1>
+      </div>
+      <div class="actions">
+        <a href="/" class="btn btn-ghost">← IPs & Portas</a>
+        <a href="/resources" class="btn btn-ghost">Recursos VPS</a>
+        <span class="last-update" id="last-update"></span>
+        <button class="btn btn-primary" id="btn-refresh">↻ Atualizar</button>
+      </div>
+    </header>
+
+    <div id="content">
+      <div class="loading">Carregando...</div>
+    </div>
+  </div>
+
+  <script>
+    function formatUptime(ms) {
+      if (!ms) return '—'
+      const s = Math.floor(ms / 1000)
+      if (s < 60) return s + 's'
+      const m = Math.floor(s / 60)
+      if (m < 60) return m + 'm ' + (s % 60) + 's'
+      const h = Math.floor(m / 60)
+      if (h < 24) return h + 'h ' + (m % 60) + 'm'
+      const d = Math.floor(h / 24)
+      return d + 'd ' + (h % 24) + 'h'
+    }
+
+    function formatMem(bytes) {
+      if (!bytes) return '0'
+      const mb = bytes / 1024 / 1024
+      return mb >= 1000 ? (mb / 1024).toFixed(1) + ' GB' : mb.toFixed(1) + ' MB'
+    }
+
+    function statusClass(s) {
+      if (s === 'online' || s === 'running') return 'status-online'
+      if (s === 'errored' || s === 'exited') return 'status-errored'
+      if (s === 'stopped' || s === 'paused') return 'status-stopped'
+      return 'status-other'
+    }
+
+    function cardClass(s) {
+      if (s === 'online' || s === 'running') return 'online'
+      if (s === 'errored' || s === 'exited') return 'errored'
+      if (s === 'stopped') return 'stopped'
+      return ''
+    }
+
+    function parsePorts(portsStr) {
+      if (!portsStr) return []
+      return portsStr.split(',').map(s => s.trim()).filter(Boolean)
+    }
+
+    function parseDockerStatus(statusStr) {
+      if (!statusStr) return 'unknown'
+      const s = statusStr.toLowerCase()
+      if (s.startsWith('up')) return 'running'
+      if (s.startsWith('exited')) return 'exited'
+      if (s.startsWith('paused')) return 'paused'
+      return 'stopped'
+    }
+
+    function renderPm2Card(proc) {
+      const env = proc.pm2_env || {}
+      const status = env.status || 'unknown'
+      const cpu = proc.monit?.cpu ?? '—'
+      const mem = proc.monit?.memory ? formatMem(proc.monit.memory) : '—'
+      const uptime = env.pm_uptime ? formatUptime(Date.now() - env.pm_uptime) : '—'
+      const restarts = env.restart_time ?? 0
+      const link = proc._link
+
+      return `
+        <div class="card ${cardClass(status)}">
+          <div class="card-header">
+            <span class="proc-name">${proc.name}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="source-tag tag-pm2">PM2</span>
+              <span class="status-badge ${statusClass(status)}">${status}</span>
+            </div>
+          </div>
+
+          <div class="metrics">
+            <div class="metric metric-cpu">
+              <div class="metric-label">CPU</div>
+              <div class="metric-value">${cpu}<span class="metric-unit">%</span></div>
+            </div>
+            <div class="metric metric-mem">
+              <div class="metric-label">Memória</div>
+              <div class="metric-value">${mem}</div>
+            </div>
+            <div class="metric metric-uptime">
+              <div class="metric-label">Uptime</div>
+              <div class="metric-value">${uptime}</div>
+            </div>
+            <div class="metric metric-restarts">
+              <div class="metric-label">Restarts</div>
+              <div class="metric-value">${restarts}</div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <span class="proc-id">id <span>#${proc.pm_id}</span> · PID <span>${env.pid || '—'}</span></span>
+            ${link ? `<a class="link-btn" href="${link.url}" target="_blank">↗ ${link.url.replace('http://', '')}</a>` : ''}
+          </div>
+        </div>
+      `
+    }
+
+    function renderDockerCard(c) {
+      const status = parseDockerStatus(c.Status)
+      const ports = parsePorts(c.Ports)
+      const image = c.Image || '—'
+      const name = c.Names || c.Name || '—'
+
+      return `
+        <div class="card ${cardClass(status)}">
+          <div class="card-header">
+            <span class="proc-name">${name}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="source-tag tag-docker">Docker</span>
+              <span class="status-badge ${statusClass(status)}">${status}</span>
+            </div>
+          </div>
+
+          <div class="docker-info">
+            <div class="docker-row">
+              <span class="docker-row-label">Imagem</span>
+              <span class="docker-row-value">${image}</span>
+            </div>
+            <div class="docker-row">
+              <span class="docker-row-label">Status</span>
+              <span class="docker-row-value">${c.Status || '—'}</span>
+            </div>
+            ${ports.length ? `
+            <div style="margin-top:4px">
+              <div class="docker-row-label" style="margin-bottom:4px">Portas</div>
+              <div class="docker-ports">
+                ${ports.map(p => `<span class="port-tag">${p}</span>`).join('')}
+              </div>
+            </div>` : ''}
+          </div>
+
+          <div class="card-footer">
+            <span class="proc-id">id <span>${(c.ID || c.Id || '').slice(0,12)}</span></span>
+          </div>
+        </div>
+      `
+    }
+
+    async function load() {
+      try {
+        const [pm2Res, dockerRes] = await Promise.all([
+          fetch('/api/pm2'),
+          fetch('/api/docker')
+        ])
+
+        const pm2List   = pm2Res.ok   ? await pm2Res.json()   : []
+        const dockerList = dockerRes.ok ? await dockerRes.json() : []
+
+        const pm2Error    = pm2List.error
+        const dockerError = dockerList.error
+
+        const pm2Procs    = pm2Error    ? [] : pm2List
+        const dockerConts = dockerError ? [] : dockerList
+
+        const total = pm2Procs.length + dockerConts.length
+        document.getElementById('proc-count').textContent =
+          `${pm2Procs.length} PM2 · ${dockerConts.length} Docker`
+
+        const onlinePm2    = pm2Procs.filter(p => p.pm2_env?.status === 'online').length
+        const runningDocker = dockerConts.filter(c => parseDockerStatus(c.Status) === 'running').length
+        const allOnline    = (onlinePm2 === pm2Procs.length) && (runningDocker === dockerConts.length)
+        document.getElementById('status-dot').style.background =
+          allOnline ? '#22c55e' : (onlinePm2 + runningDocker > 0 ? '#f59e0b' : '#ef4444')
+
+        let html = ''
+
+        // PM2
+        html += `
+          <div class="section-label">
+            <h2>PM2</h2>
+            <div class="line"></div>
+            <span class="count">${onlinePm2}/${pm2Procs.length} online</span>
+          </div>
+        `
+        if (pm2Error) {
+          html += `<div class="error-msg">Erro ao carregar PM2: ${pm2Error}</div>`
+        } else if (pm2Procs.length === 0) {
+          html += `<div class="error-msg">Nenhum processo PM2.</div>`
+        } else {
+          html += `<div class="grid">${pm2Procs.map(renderPm2Card).join('')}</div>`
+        }
+
+        // Docker
+        html += `
+          <div class="section-label">
+            <h2>Docker</h2>
+            <div class="line"></div>
+            <span class="count">${runningDocker}/${dockerConts.length} rodando</span>
+          </div>
+        `
+        if (dockerError) {
+          html += `<div class="error-msg">Erro ao carregar Docker: ${dockerError}</div>`
+        } else if (dockerConts.length === 0) {
+          html += `<div class="error-msg">Nenhum container Docker.</div>`
+        } else {
+          html += `<div class="grid">${dockerConts.map(renderDockerCard).join('')}</div>`
+        }
+
+        document.getElementById('content').innerHTML = html
+        document.getElementById('last-update').textContent =
+          'Atualizado às ' + new Date().toLocaleTimeString('pt-BR')
+
+      } catch (e) {
+        document.getElementById('content').innerHTML =
+          `<div class="error-msg">Erro de rede: ${e.message}</div>`
+      }
+    }
+
+    function parseDockerStatus(s) {
+      if (!s) return 'unknown'
+      const l = s.toLowerCase()
+      if (l.startsWith('up')) return 'running'
+      if (l.startsWith('exited')) return 'exited'
+      if (l.startsWith('paused')) return 'paused'
+      return 'stopped'
+    }
+
+    document.getElementById('btn-refresh').addEventListener('click', load)
+    load()
+    setInterval(load, 10000)
+  </script>
+</body>
+</html>
