@@ -1,6 +1,7 @@
 # painel-ips
 
 [English version](./README.en.md)
+[Guia para IA instalar](./AI_INSTALL.md)
 
 Painel leve em Node.js para listar serviços internos, monitorar processos PM2, containers Docker e recursos da VPS.
 
@@ -54,6 +55,10 @@ cp .env.example .env
 nano .env
 chmod +x install.sh
 ```
+
+Se a instalação for executada por um agente/IA, use também o guia dedicado:
+
+- [AI_INSTALL.md](/root/painel-ips/AI_INSTALL.md)
 
 ## Configuração
 
